@@ -9,17 +9,159 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+
+      - uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
+
       - name: Build Signed APK Directly via Android SDK
         run: |
-          echo "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" | tr -d ' \n\r' | base64 -d | gunzip | bash
+          set -e
+          find . -maxdepth 3 -name "*.zip" -exec unzip -o {} \; || true
+          HTML_FILE=$(find . -name "*.html" | head -n 1)
+          if [ -z "$HTML_FILE" ]; then
+            echo "ERROR: ChadNotes_Android_Studio_Project.zip is missing! Upload it in the Code tab."
+            exit 1
+          fi
+
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME/build-tools/"* | sort -V | tail -n 1)
+          PLATFORM_DIR=$(ls -d "$ANDROID_HOME/platforms/android-"* | sort -V | tail -n 1)
+          ANDROID_JAR="$PLATFORM_DIR/android.jar"
+
+          rm -rf /tmp/apkbuild
+          mkdir -p /tmp/apkbuild/src/com/chadnotes/pad3 /tmp/apkbuild/gen /tmp/apkbuild/obj /tmp/apkbuild/compiled /tmp/apkbuild/assets /tmp/apkbuild/res/mipmap-xxxhdpi
+
+          cp "$HTML_FILE" /tmp/apkbuild/assets/chadnotes_tablet.html
+          ICON_PNG=$(find . -name "ic_launcher.png" | sort | tail -n 1)
+          cp "$ICON_PNG" /tmp/apkbuild/res/mipmap-xxxhdpi/ic_launcher.png
+          cp "$ICON_PNG" /tmp/apkbuild/res/mipmap-xxxhdpi/ic_launcher_round.png
+
+          cd /tmp/apkbuild
+
+          echo '<?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.chadnotes.pad3" android:versionCode="12" android:versionName="12.0">
+            <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
+            <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            <application android:allowBackup="true" android:hardwareAccelerated="true" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:label="ChadNotes" android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">
+              <activity android:name="com.chadnotes.pad3.MainActivity" android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density" android:exported="true" android:hardwareAccelerated="true">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN" />
+                  <category android:name="android.intent.category.LAUNCHER" />
+                </intent-filter>
+              </activity>
+            </application>
+          </manifest>' > AndroidManifest.xml
+
+          echo 'package com.chadnotes.pad3;
+          import android.app.Activity;
+          import android.content.ContentValues;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.os.Environment;
+          import android.provider.MediaStore;
+          import android.util.Base64;
+          import android.view.View;
+          import android.view.Window;
+          import android.view.WindowInsets;
+          import android.view.WindowInsetsController;
+          import android.view.WindowManager;
+          import android.webkit.*;
+          import android.widget.Toast;
+          import java.io.*;
+
+          public class MainActivity extends Activity {
+              private WebView webView;
+              @Override
+              protected void onCreate(Bundle s) {
+                  super.onCreate(s);
+                  requestWindowFeature(Window.FEATURE_NO_TITLE);
+                  getWindow().addFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+                  webView = new WebView(this);
+                  setContentView(webView);
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                      getWindow().setDecorFitsSystemWindows(false);
+                      WindowInsetsController c = getWindow().getInsetsController();
+                      if (c != null) {
+                          c.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                          c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                      }
+                  }
+                  webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+                  WebSettings ws = webView.getSettings();
+                  ws.setJavaScriptEnabled(true);
+                  ws.setDomStorageEnabled(true);
+                  ws.setDatabaseEnabled(true);
+                  ws.setAllowFileAccess(true);
+                  ws.setAllowContentAccess(true);
+                  ws.setMediaPlaybackRequiresUserGesture(false);
+                  webView.addJavascriptInterface(new AndroidChadBridge(), "AndroidChadBridge");
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public void onPermissionRequest(PermissionRequest r) {
+                          if (r != null) r.grant(r.getResources());
+                      }
+                  });
+                  webView.loadUrl("file:///android_asset/chadnotes_tablet.html");
+              }
+              @Override
+              public void onBackPressed() {
+                  if (webView != null) webView.evaluateJavascript("closeAllPopovers(); closeContextDropdowns();", null);
+                  else super.onBackPressed();
+              }
+              public class AndroidChadBridge {
+                  @JavascriptInterface
+                  public void saveStorageItem(String k, String v) {
+                      getSharedPreferences("ChadNotesNativePrefs", MODE_PRIVATE).edit().putString(k, v).apply();
+                  }
+                  @JavascriptInterface
+                  public String getStorageItem(String k) {
+                      return getSharedPreferences("ChadNotesNativePrefs", MODE_PRIVATE).getString(k, "");
+                  }
+                  @JavascriptInterface
+                  public void saveBase64File(String dataUrl, final String fileName, String mime) {
+                      try {
+                          int idx = dataUrl.indexOf("base64,");
+                          byte[] bytes = Base64.decode(idx >= 0 ? dataUrl.substring(idx + 7) : dataUrl, Base64.DEFAULT);
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                              ContentValues v = new ContentValues();
+                              v.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
+                              v.put(MediaStore.Downloads.MIME_TYPE, mime);
+                              v.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/ChadNotes");
+                              Uri u = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                              if (u != null) {
+                                  OutputStream os = getContentResolver().openOutputStream(u);
+                                  if (os != null) { os.write(bytes); os.close(); }
+                              }
+                          }
+                          runOnUiThread(new Runnable() {
+                              @Override public void run() {
+                                  Toast.makeText(MainActivity.this, "Saved to Downloads/ChadNotes/" + fileName, Toast.LENGTH_LONG).show();
+                              }
+                          });
+                      } catch (Exception e) {}
+                  }
+              }
+          }' > src/com/chadnotes/pad3/MainActivity.java
+
+          "$BUILD_TOOLS/aapt2" compile res/mipmap-xxxhdpi/ic_launcher.png -o compiled/
+          "$BUILD_TOOLS/aapt2" compile res/mipmap-xxxhdpi/ic_launcher_round.png -o compiled/
+          "$BUILD_TOOLS/aapt2" link -o unsigned.apk -I "$ANDROID_JAR" compiled/*.flat --manifest AndroidManifest.xml -A assets --java gen
+          javac -source 1.8 -target 1.8 -bootclasspath "$ANDROID_JAR" -cp "$ANDROID_JAR" -d obj $(find src gen -name "*.java") || javac -source 11 -target 11 -cp "$ANDROID_JAR" -d obj $(find src gen -name "*.java")
+          "$BUILD_TOOLS/d8" --min-api 26 --lib "$ANDROID_JAR" --output . $(find obj -name "*.class")
+          zip -uj unsigned.apk classes.dex
+          "$BUILD_TOOLS/zipalign" -f -p 4 unsigned.apk aligned.apk
+          keytool -genkeypair -v -keystore release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias chad -storepass chadnotes123 -keypass chadnotes123 -dname "CN=ChadNotes, OU=Pad3, O=ChadNotes, L=City, S=State, C=US"
+          "$BUILD_TOOLS/apksigner" sign --ks release.jks --ks-pass pass:chadnotes123 --key-pass pass:chadnotes123 --v1-signing-enabled true --v2-signing-enabled true --out "$GITHUB_WORKSPACE/ChadNotes-Signed.apk" aligned.apk
+
       - uses: actions/upload-artifact@v4
         with:
           name: ChadNotes-Signed-APK
           path: ChadNotes-Signed.apk
+
       - name: Publish Direct APK to Releases
         uses: softprops/action-gh-release@v2
         with:
