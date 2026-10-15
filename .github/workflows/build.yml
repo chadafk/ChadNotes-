@@ -41,7 +41,7 @@ jobs:
           cd /tmp/apkbuild
 
           echo '<?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.chadnotes.pad3" android:versionCode="12" android:versionName="12.0">
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.chadnotes.pad3" android:versionCode="13" android:versionName="13.0">
             <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
             <uses-permission android:name="android.permission.RECORD_AUDIO" />
             <application android:allowBackup="true" android:hardwareAccelerated="true" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:label="ChadNotes" android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">
@@ -56,7 +56,9 @@ jobs:
 
           echo 'package com.chadnotes.pad3;
           import android.app.Activity;
+          import android.content.ClipData;
           import android.content.ContentValues;
+          import android.content.Intent;
           import android.net.Uri;
           import android.os.Build;
           import android.os.Bundle;
@@ -123,23 +125,53 @@ jobs:
                   }
                   @JavascriptInterface
                   public void saveBase64File(String dataUrl, final String fileName, String mime) {
+                      shareOrExportFile(dataUrl, fileName, mime, "export");
+                  }
+                  @JavascriptInterface
+                  public void shareOrExportFile(String dataUrl, final String fileName, final String mime, final String mode) {
                       try {
                           int idx = dataUrl.indexOf("base64,");
                           byte[] bytes = Base64.decode(idx >= 0 ? dataUrl.substring(idx + 7) : dataUrl, Base64.DEFAULT);
+                          Uri u = null;
                           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                               ContentValues v = new ContentValues();
                               v.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
                               v.put(MediaStore.Downloads.MIME_TYPE, mime);
                               v.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/ChadNotes");
-                              Uri u = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                              u = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
                               if (u != null) {
                                   OutputStream os = getContentResolver().openOutputStream(u);
                                   if (os != null) { os.write(bytes); os.close(); }
                               }
                           }
+                          final Uri fileUri = u;
                           runOnUiThread(new Runnable() {
                               @Override public void run() {
-                                  Toast.makeText(MainActivity.this, "Saved to Downloads/ChadNotes/" + fileName, Toast.LENGTH_LONG).show();
+                                  Toast.makeText(MainActivity.this, "Saved to Downloads/ChadNotes/" + fileName, Toast.LENGTH_SHORT).show();
+                                  if (fileUri != null) {
+                                      try {
+                                          boolean isShare = "share".equalsIgnoreCase(mode);
+                                          Intent sendIntent = new Intent(Intent.ACTION_SEND);
+                                          sendIntent.setType(mime);
+                                          sendIntent.putExtra(Intent.EXTRA_STREAM, fileUri);
+                                          sendIntent.putExtra(Intent.EXTRA_SUBJECT, fileName);
+                                          sendIntent.setClipData(ClipData.newRawUri(fileName, fileUri));
+                                          sendIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+
+                                          Intent viewIntent = new Intent(Intent.ACTION_VIEW);
+                                          viewIntent.setDataAndType(fileUri, mime);
+                                          viewIntent.setClipData(ClipData.newRawUri(fileName, fileUri));
+                                          viewIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+
+                                          Intent chooser = Intent.createChooser(
+                                              sendIntent,
+                                              isShare ? ("Share " + fileName) : ("Export / Open " + fileName)
+                                          );
+                                          chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{ viewIntent });
+                                          chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                          startActivity(chooser);
+                                      } catch (Exception ex) {}
+                                  }
                               }
                           });
                       } catch (Exception e) {}
