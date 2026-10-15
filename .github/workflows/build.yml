@@ -9,21 +9,238 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+
       - uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
       - name: Extract ZIP & Build Signed APK
         run: |
-          for z in *.zip; do [ -f "$z" ] && unzip -o "$z"; done
+          find . -maxdepth 2 -name "*.zip" -exec unzip -o {} \;
           if [ -d "ChadNotes" ]; then cd ChadNotes; fi
-          gradle assembleRelease --no-daemon
+          rm -f app/src/main/java/com/chadnotes/pad3/MainActivity.kt
+
+          cat << 'EOF' > build.gradle.kts
+          plugins {
+              id("com.android.application") version "8.4.0" apply false
+          }
+          EOF
+
+          cat << 'EOF' > gradle.properties
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          EOF
+
+          cat << 'EOF' > app/build.gradle.kts
+          plugins {
+              id("com.android.application")
+          }
+          android {
+              namespace = "com.chadnotes.pad3"
+              compileSdk = 34
+              defaultConfig {
+                  applicationId = "com.chadnotes.pad3"
+                  minSdk = 26
+                  targetSdk = 34
+                  versionCode = 12
+                  versionName = "12.0-Pad3"
+              }
+              signingConfigs {
+                  create("chadRelease") {
+                      storeFile = file("chadnotes_release.jks")
+                      storePassword = "chadnotes123"
+                      keyAlias = "chadnotes_key"
+                      keyPassword = "chadnotes123"
+                      enableV1Signing = true
+                      enableV2Signing = true
+                  }
+              }
+              buildTypes {
+                  debug {
+                      isDebuggable = true
+                      signingConfig = signingConfigs.getByName("chadRelease")
+                  }
+                  release {
+                      isMinifyEnabled = false
+                      isShrinkResources = false
+                      signingConfig = signingConfigs.getByName("chadRelease")
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+          }
+          dependencies {}
+          EOF
+
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <application
+                  android:allowBackup="true"
+                  android:hardwareAccelerated="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:label="ChadNotes"
+                  android:supportsRtl="true"
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">
+                  <activity
+                      android:name=".MainActivity"
+                      android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density"
+                      android:exported="true"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/chadnotes/pad3/MainActivity.java
+          package com.chadnotes.pad3;
+          import android.annotation.SuppressLint;
+          import android.app.Activity;
+          import android.content.ContentValues;
+          import android.content.SharedPreferences;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.os.Environment;
+          import android.provider.MediaStore;
+          import android.util.Base64;
+          import android.view.View;
+          import android.view.Window;
+          import android.view.WindowInsets;
+          import android.view.WindowInsetsController;
+          import android.view.WindowManager;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.PermissionRequest;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.widget.Toast;
+          import java.io.File;
+          import java.io.FileOutputStream;
+          import java.io.OutputStream;
+
+          public class MainActivity extends Activity {
+              private WebView webView;
+              @SuppressLint("SetJavaScriptEnabled")
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  requestWindowFeature(Window.FEATURE_NO_TITLE);
+                  getWindow().addFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                      getWindow().getAttributes().layoutInDisplayCutoutMode =
+                          WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+                  }
+                  webView = new WebView(this);
+                  setContentView(webView);
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                      getWindow().setDecorFitsSystemWindows(false);
+                      WindowInsetsController c = getWindow().getInsetsController();
+                      if (c != null) {
+                          c.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                          c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                      }
+                  }
+                  webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+                  webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+                  WebSettings s = webView.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  s.setDatabaseEnabled(true);
+                  s.setAllowFileAccess(true);
+                  s.setAllowContentAccess(true);
+                  s.setMediaPlaybackRequiresUserGesture(false);
+                  s.setCacheMode(WebSettings.LOAD_DEFAULT);
+                  s.setSupportZoom(false);
+                  webView.addJavascriptInterface(new AndroidChadBridge(), "AndroidChadBridge");
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public void onPermissionRequest(final PermissionRequest request) {
+                          if (request != null) request.grant(request.getResources());
+                      }
+                  });
+                  webView.loadUrl("file:///android_asset/chadnotes_tablet.html");
+              }
+              @Override
+              @SuppressWarnings("deprecation")
+              public void onBackPressed() {
+                  if (webView != null) {
+                      webView.evaluateJavascript("closeAllPopovers(); closeContextDropdowns();", null);
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+              public class AndroidChadBridge {
+                  @JavascriptInterface
+                  public void saveStorageItem(String key, String value) {
+                      SharedPreferences p = getSharedPreferences("ChadNotesNativePrefs", MODE_PRIVATE);
+                      p.edit().putString(key, value).apply();
+                  }
+                  @JavascriptInterface
+                  public String getStorageItem(String key) {
+                      SharedPreferences p = getSharedPreferences("ChadNotesNativePrefs", MODE_PRIVATE);
+                      String v = p.getString(key, "");
+                      return v != null ? v : "";
+                  }
+                  @JavascriptInterface
+                  public void saveBase64File(String dataUrl, final String fileName, String mimeType) {
+                      try {
+                          int idx = dataUrl.indexOf("base64,");
+                          String b64 = idx >= 0 ? dataUrl.substring(idx + 7) : dataUrl;
+                          byte[] bytes = Base64.decode(b64, Base64.DEFAULT);
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                              ContentValues v = new ContentValues();
+                              v.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
+                              v.put(MediaStore.Downloads.MIME_TYPE, mimeType);
+                              v.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/ChadNotes");
+                              Uri u = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                              if (u != null) {
+                                  try (OutputStream os = getContentResolver().openOutputStream(u)) {
+                                      if (os != null) os.write(bytes);
+                                  }
+                              }
+                          } else {
+                              File d = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                              File f = new File(d, fileName);
+                              try (FileOutputStream fos = new FileOutputStream(f)) {
+                                  fos.write(bytes);
+                              }
+                          }
+                          runOnUiThread(() -> Toast.makeText(MainActivity.this, "Saved to Downloads/ChadNotes/" + fileName, Toast.LENGTH_LONG).show());
+                      } catch (final Exception e) {
+                          runOnUiThread(() -> Toast.makeText(MainActivity.this, "Export error: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                      }
+                  }
+              }
+          }
+          EOF
+
+          gradle assembleRelease --no-daemon --stacktrace
           cp app/build/outputs/apk/release/*.apk $GITHUB_WORKSPACE/ChadNotes-Signed.apk
+
       - uses: actions/upload-artifact@v4
         with:
           name: ChadNotes-Signed-APK
           path: ChadNotes-Signed.apk
+
       - name: Publish Direct APK to Releases
         uses: softprops/action-gh-release@v2
         with:
