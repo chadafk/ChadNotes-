@@ -1,0 +1,172 @@
+name: Build ChadNotes APK
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Build Signed ChadNotes v15 APK via Android SDK
+        run: |
+          set -e
+          echo "=== 1. Locating or extracting ChadNotes_Android_Studio_Project.zip ==="
+          find . -maxdepth 3 -name "*.zip" -exec unzip -o {} \; || true
+
+          HTML_FILE=$(find . -name "chadnotes_tablet.html" | head -n 1)
+          if [ -z "$HTML_FILE" ]; then
+            HTML_FILE=$(find . -name "*.html" | head -n 1)
+          fi
+          if [ -z "$HTML_FILE" ]; then
+            echo "ERROR: chadnotes_tablet.html or ChadNotes_Android_Studio_Project.zip not found in repository!"
+            exit 1
+          fi
+          echo "Using HTML asset: $HTML_FILE"
+
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME/build-tools/"* | sort -V | tail -n 1)
+          PLATFORM_DIR=$(ls -d "$ANDROID_HOME/platforms/android-"* | sort -V | tail -n 1)
+          ANDROID_JAR="$PLATFORM_DIR/android.jar"
+
+          rm -rf /tmp/apkbuild
+          mkdir -p /tmp/apkbuild/src/com/chadnotes/pad3
+          mkdir -p /tmp/apkbuild/gen
+          mkdir -p /tmp/apkbuild/obj
+          mkdir -p /tmp/apkbuild/compiled
+          mkdir -p /tmp/apkbuild/assets
+          mkdir -p /tmp/apkbuild/res/drawable
+
+          cp "$HTML_FILE" /tmp/apkbuild/assets/chadnotes_tablet.html
+
+          cat << 'ICON_EOF' > /tmp/apkbuild/res/drawable/ic_chadnotes_icon.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="512"
+              android:viewportHeight="512">
+              <path android:fillColor="#0C0D12" android:pathData="M0,0h512v512h-512z"/>
+              <path android:fillColor="#FF5500" android:pathData="M64,32h384c17.7,0 32,14.3 32,32v384c0,17.7 -14.3,32 -32,32H64c-17.7,0 -32,-14.3 -32,-32V64c0,-17.7 14.3,-32 32,-32z"/>
+              <path android:fillColor="#0E1017" android:pathData="M72,40h368c13.3,0 24,10.7 24,24v384c0,13.3 -10.7,24 -24,24H72c-13.3,0 -24,-10.7 -24,-24V64c0,-13.3 10.7,-24 24,-24z"/>
+              <path android:fillColor="#262830" android:pathData="M76,488 L145,385 L195,345 L317,345 L367,385 L436,488 Z"/>
+              <path android:fillColor="#484C56" android:pathData="M205,345 L256,430 L307,345 Z"/>
+              <path android:fillColor="#343740" android:pathData="M146,175 L154,108 L198,68 L268,56 L338,72 L368,118 L362,180 L335,142 L256,128 L175,144 Z"/>
+              <path android:fillColor="#949AA6" android:pathData="M172,110 L215,76 L278,68 L332,86 L295,104 L210,112 Z"/>
+              <path android:fillColor="#C4CAD4" android:pathData="M154,140 L256,132 L256,382 L178,356 L146,282 Z"/>
+              <path android:fillColor="#707682" android:pathData="M256,132 L358,140 L366,282 L334,356 L256,382 Z"/>
+              <path android:fillColor="#545862" android:pathData="M152,224 L214,246 L196,304 L154,276 Z"/>
+              <path android:fillColor="#363A44" android:pathData="M360,224 L298,246 L316,304 L358,276 Z"/>
+              <path android:fillColor="#20232A" android:pathData="M158,184 L244,194 L242,212 L164,204 Z"/>
+              <path android:fillColor="#181A20" android:pathData="M354,184 L268,194 L270,212 L348,204 Z"/>
+              <path android:fillColor="#FF7319" android:pathData="M326,198 L294,201 L298,206 L324,205 Z"/>
+              <path android:fillColor="#EEF0F5" android:pathData="M246,192 L256,192 L256,264 L238,260 Z"/>
+              <path android:fillColor="#1E2026" android:pathData="M146,274 L168,268 L196,302 L222,274 L256,268 L290,274 L316,302 L344,268 L366,274 L354,344 L328,376 L256,396 L184,376 L158,344 Z"/>
+              <path android:fillColor="#343842" android:pathData="M212,274 L256,266 L300,274 L312,294 L256,286 L200,294 Z"/>
+              <path android:fillColor="#40444E" android:pathData="M232,336 L252,336 L248,382 L224,374 Z"/>
+              <path android:fillColor="#FF5500" android:pathData="M338,428 L434,332 L458,356 L362,452 Z"/>
+              <path android:fillColor="#FFD2AA" android:pathData="M320,468 L338,428 L362,452 Z"/>
+          </vector>
+          ICON_EOF
+
+          cat << 'MANIFEST_EOF' > /tmp/apkbuild/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.chadnotes.pad3"
+              android:versionCode="15"
+              android:versionName="15.0-Pad3">
+
+              <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
+              <application
+                  android:allowBackup="true"
+                  android:hardwareAccelerated="true"
+                  android:icon="@drawable/ic_chadnotes_icon"
+                  android:roundIcon="@drawable/ic_chadnotes_icon"
+                  android:label="ChadNotes"
+                  android:supportsRtl="true"
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">
+
+                  <activity
+                      android:name="com.chadnotes.pad3.MainActivity"
+                      android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density"
+                      android:exported="true"
+                      android:launchMode="singleTask"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+
+                      <!-- Open / Edit PDF Documents from Android Files, Downloads, WhatsApp, Drive, Chrome -->
+                      <intent-filter android:label="ChadNotes PDF Studio" android:priority="100">
+                          <action android:name="android.intent.action.VIEW" />
+                          <action android:name="android.intent.action.EDIT" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <category android:name="android.intent.category.BROWSABLE" />
+                          <data android:scheme="content" />
+                          <data android:scheme="file" />
+                          <data android:mimeType="application/pdf" />
+                      </intent-filter>
+
+                      <!-- Share PDF Documents to ChadNotes via Android Share Sheet -->
+                      <intent-filter android:label="ChadNotes PDF Studio">
+                          <action android:name="android.intent.action.SEND" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <data android:mimeType="application/pdf" />
+                      </intent-filter>
+
+                      <!-- Fallback for File Managers that open .pdf files by file extension -->
+                      <intent-filter android:label="ChadNotes PDF Studio">
+                          <action android:name="android.intent.action.VIEW" />
+                          <action android:name="android.intent.action.EDIT" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <category android:name="android.intent.category.BROWSABLE" />
+                          <data android:scheme="content" />
+                          <data android:scheme="file" />
+                          <data android:host="*" />
+                          <data android:mimeType="*/*" />
+                          <data android:pathPattern=".*\.pdf" />
+                          <data android:pathPattern=".*\..*\.pdf" />
+                          <data android:pathPattern=".*\..*\..*\.pdf" />
+                          <data android:pathPattern=".*\.PDF" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          MANIFEST_EOF
+
+          JAVA_SRC=$(find . -name "MainActivity.java" | head -n 1)
+          if [ -n "$JAVA_SRC" ]; then
+            cp "$JAVA_SRC" /tmp/apkbuild/src/com/chadnotes/pad3/MainActivity.java
+          fi
+
+          cd /tmp/apkbuild
+          "$BUILD_TOOLS/aapt2" compile res/drawable/ic_chadnotes_icon.xml -o compiled/
+          "$BUILD_TOOLS/aapt2" link -o unsigned.apk -I "$ANDROID_JAR" compiled/*.flat --manifest AndroidManifest.xml -A assets --java gen
+          javac -source 1.8 -target 1.8 -bootclasspath "$ANDROID_JAR" -cp "$ANDROID_JAR" -d obj $(find src gen -name "*.java") || javac -source 11 -target 11 -cp "$ANDROID_JAR" -d obj $(find src gen -name "*.java")
+          "$BUILD_TOOLS/d8" --min-api 26 --lib "$ANDROID_JAR" --output . $(find obj -name "*.class")
+          zip -uj unsigned.apk classes.dex
+          "$BUILD_TOOLS/zipalign" -f -p 4 unsigned.apk aligned.apk
+          keytool -genkeypair -v -keystore release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias chad -storepass chadnotes123 -keypass chadnotes123 -dname "CN=ChadNotes, OU=Pad3, O=ChadNotes, L=City, S=State, C=US"
+          "$BUILD_TOOLS/apksigner" sign --ks release.jks --ks-pass pass:chadnotes123 --key-pass pass:chadnotes123 --v1-signing-enabled true --v2-signing-enabled true --out "$GITHUB_WORKSPACE/ChadNotes-Signed.apk" aligned.apk
+          ls -lh "$GITHUB_WORKSPACE/ChadNotes-Signed.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChadNotes-Signed-APK
+          path: ChadNotes-Signed.apk
+      - name: Publish Direct APK to Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v15.0.${{ github.run_number }}
+          name: "ChadNotes v15 Signed APK (Build #${{ github.run_number }})"
+          files: ChadNotes-Signed.apk
